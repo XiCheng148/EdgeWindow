@@ -22,7 +22,7 @@
 1. 确保已安装 Hammerspoon
 2. 克隆此仓库到 Hammerspoon 的配置目录：
    ```bash
-     git clone https://github.com/yourusername/edge-window-manager.git ~/.hammerspoon
+     git clone https://github.com/XiCheng148/EdgeWindow.git ~/.hammerspoon
    ```
  3. 重启 Hammerspoon
 
@@ -32,7 +32,7 @@
 
 - `Cmd + Alt + Left`: 将当前窗口贴附到左侧边缘
 - `Cmd + Alt + Right`: 将当前窗口贴附到右侧边缘
-- `Cmd + Alt + C`: 清除所有边缘贴附的窗口
+- `Cmd + Alt + H`: 清除所有边缘贴附的窗口
 - `Cmd + Alt + ,`: 打开配置界面
 
 ### 基本操作
