@@ -21,6 +21,11 @@ function EdgeManager:init()
     self:setupHotkeys()
 end
 
+function EdgeManager:isPointInRect(point, rect)
+    return point.x >= rect.x and point.x <= rect.x + rect.w and
+           point.y >= rect.y and point.y <= rect.y + rect.h
+end
+
 function EdgeManager:setupWindowFilter()
     local windowFilter = hs.window.filter.new()
     windowFilter:subscribe(hs.window.filter.windowUnfocused, function(window)
@@ -59,7 +64,6 @@ function EdgeManager:handleWindowMoved(window)
         end
         self.windowManager:removeWindow(window:id())
         self.stateManager:removeState(window:id())
-        utils.log("Window removed due to manual movement")
         return
     end
 
@@ -70,8 +74,6 @@ function EdgeManager:handleWindowMoved(window)
         info.edgeFrame.y = currentFrame.y
         -- 更新触发区域的y轴位置
         info.triggerZone.y = currentFrame.y
-
-        utils.log("Window position updated")
     end
 end
 
@@ -146,14 +148,14 @@ function EdgeManager:handleHotkey(edge)
         -- 获取当前焦点窗口
         local window = hs.window.focusedWindow()
         if not window then
-            utils.log("No focused window")
+            -- todo
             return
         end
 
         -- 获取当前窗口所在的屏幕
         local currentScreen = window:screen()
         if not currentScreen then
-            utils.log("Cannot get window screen")
+            -- todo
             return
         end
 
@@ -214,7 +216,7 @@ function EdgeManager:handleHotkey(edge)
                 end
             end)
         else
-            utils.log("Failed to add window")
+            -- todo
         end
     end, "handleHotkey")()
 end
@@ -227,7 +229,6 @@ function EdgeManager:removeWindow(window)
         end
         self.windowManager:removeWindow(window:id())
         self.stateManager:removeState(window:id())
-        utils.log("Removed window")
     end
 end
 
@@ -261,7 +262,7 @@ function EdgeManager:setupLeaveWatcher(info)
         local point = hs.mouse.absolutePosition()
         local frame = info.window:frame()
 
-        if not utils.isPointInRect(point, frame) and
+        if not self:isPointInRect(point, frame) and
             not self.stateManager:isWindowMoving(info.window:id()) then
             info.leaveWatcher:stop()
             info.leaveWatcher = nil
@@ -285,7 +286,6 @@ function EdgeManager:clearAll()
         self.windowManager:removeWindow(info.window:id())
         self.stateManager:removeState(info.window:id())
     end
-    utils.log("Cleared all windows")
 end
 
 function EdgeManager:destroy()
@@ -306,7 +306,6 @@ function EdgeManager:destroy()
     self.windowManager = nil
     self.stateManager = nil
     collectgarbage("collect")
-    utils.log("EdgeManager destroyed")
 end
 
 return EdgeManager

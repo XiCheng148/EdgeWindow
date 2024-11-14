@@ -28,7 +28,7 @@ end
 -- 使用错误处理包装初始化过程
 local success, manager = xpcall(initializeEdgeManager, debug.traceback)
 if not success then
-    utils.log("Failed to initialize EdgeManager:", manager)
+    print("Failed to initialize EdgeManager:", manager)
     return
 end
 
