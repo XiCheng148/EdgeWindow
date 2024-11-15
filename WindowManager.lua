@@ -1,8 +1,8 @@
+local log = require("log")
 local WindowManager = {}
 WindowManager.__index = WindowManager
 
 local config = require("config")
-local utils = require("utils")
 
 function WindowManager:new()
     local self = setmetatable({}, WindowManager)
@@ -22,6 +22,7 @@ function WindowManager:calculateHiddenFrame(window, edge)
         hiddenFrame.x = screenFrame.x + screen.w - config.EDGE_PEEK_SIZE
     end
 
+    log.info("Hidden Frame", string.format("Hidden frame: %s", hiddenFrame))
     return hiddenFrame
 end
 
@@ -39,11 +40,12 @@ function WindowManager:addWindow(window, edge)
         triggerZone = self:calculateTriggerZone(window, edge),
         edge = edge
     }
-
+    log.info("Added window", string.format("Added window %d to %s edge", id, edge))
     return self.windows[id]
 end
 
 function WindowManager:removeWindow(windowId)
+    log.info("Remove Window", string.format(windowId))
     self.windows[windowId] = nil
 end
 
@@ -74,6 +76,7 @@ function WindowManager:calculateTriggerZone(window, edge)
         zone.w = config.EDGE_TRIGGER_SIZE * 2
     end
 
+    log.info("Trigger Zone", string.format("Trigger zone: %s", zone))
     return zone
 end
 
@@ -89,6 +92,7 @@ function WindowManager:calculateEdgeFrame(window, edge)
         edgeFrame.x = screenFrame.x + screen.w - frame.w
     end
 
+    log.info("Edge Frame", string.format("Edge frame: %s", edgeFrame))
     return edgeFrame
 end
 

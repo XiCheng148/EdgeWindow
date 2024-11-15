@@ -4,6 +4,7 @@ StateManager.__index = StateManager
 function StateManager:new()
     local self = setmetatable({}, StateManager)
     self.states = {}
+    self.windowStates = {}  -- 添加窗口状态跟踪
     return self
 end
 
@@ -28,6 +29,14 @@ function StateManager:setWindowMoving(windowId, isMoving)
     local state = self.states[windowId] or {}
     state.isMoving = isMoving
     self.states[windowId] = state
+end
+
+function StateManager:setWindowHidden(windowId, isHidden)
+    self.windowStates[windowId] = isHidden
+end
+
+function StateManager:isWindowHidden(windowId)
+    return self.windowStates[windowId] == true
 end
 
 return StateManager

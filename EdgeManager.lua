@@ -1,12 +1,10 @@
 local EdgeManager = {}
 EdgeManager.__index = EdgeManager
-
+local log = require("log")
 local config = require("config")
-local utils = require("utils")
 local WindowManager = require("WindowManager")
 local StateManager = require("StateManager")
-local ErrorHandler = require("ErrorHandler")
-
+local lastMouseCheck = 0
 function EdgeManager:new()
     local self = setmetatable({}, EdgeManager)
     self.windowManager = WindowManager:new()
@@ -23,7 +21,7 @@ end
 
 function EdgeManager:isPointInRect(point, rect)
     return point.x >= rect.x and point.x <= rect.x + rect.w and
-           point.y >= rect.y and point.y <= rect.y + rect.h
+        point.y >= rect.y and point.y <= rect.y + rect.h
 end
 
 function EdgeManager:setupWindowFilter()
@@ -123,8 +121,15 @@ function EdgeManager:handleWindowUnfocus(window)
 end
 
 function EdgeManager:handleMouseMove(point)
+    local now = hs.timer.secondsSinceEpoch()
+    if now - lastMouseCheck < config.MOUSE_CHECK_INTERVAL then
+        return
+    end
+    lastMouseCheck = now
+
     for _, info in pairs(self.windowManager:getAllWindows()) do
-        if self:shouldShowWindow(point, info) then
+        if self.stateManager:isWindowHidden(info.window:id()) and
+            self:shouldShowWindow(point, info) then
             hs.timer.doAfter(0.1, function()
                 if self:shouldShowWindow(hs.mouse.absolutePosition(), info) then
                     self:showWindow(info)
@@ -144,81 +149,81 @@ function EdgeManager:shouldShowWindow(point, info)
 end
 
 function EdgeManager:handleHotkey(edge)
-    return ErrorHandler.wrap(function()
-        -- 获取当前焦点窗口
-        local window = hs.window.focusedWindow()
-        if not window then
-            -- todo
-            return
-        end
+    log.action("Hotkey", string.format("Triggered edge: %s", edge))
+    -- 获取当前焦点窗口
+    local window = hs.window.focusedWindow()
+    if not window then
+        -- todo
+        return
+    end
 
-        -- 获取当前窗口所在的屏幕
-        local currentScreen = window:screen()
-        if not currentScreen then
-            -- todo
-            return
-        end
+    -- 获取当前窗口所在的屏幕
+    local currentScreen = window:screen()
+    if not currentScreen then
+        -- todo
+        return
+    end
 
-        -- 检查窗口是否已经被管理
-        local info = self.windowManager:getWindow(window:id())
+    -- 检查窗口是否已经被管理
+    local info = self.windowManager:getWindow(window:id())
 
-        -- 如果窗口已经被管理
-        if info then
-            -- 如果窗口在同一边，直接显示
-            if info.edge == edge then
-                if not self.stateManager:isWindowMoving(window:id()) then
-                    self:showWindow(info)
-                end
-                return
+    -- 如果窗口已经被管理
+    if info then
+        -- 如果窗口在同一边，直接显示
+        if info.edge == edge then
+            if not self.stateManager:isWindowMoving(window:id()) then
+                self:showWindow(info)
             end
-
-            -- 如果窗口在另一边，先移除它并等待动画完成
-            self.stateManager:setWindowMoving(window:id(), true)
-
-            -- 恢复窗口到原始位置
-            window:setFrame(info.originalFrame, config.ANIMATION_DURATION)
-
-            -- 清理原有的监视器和状态
-            if info.leaveWatcher then
-                info.leaveWatcher:stop()
-                info.leaveWatcher = nil
-            end
-
-            -- 移除窗口管理
-            self.windowManager:removeWindow(window:id())
-
-            -- 等待动画完成后添加到新的边缘
-            hs.timer.doAfter(config.ANIMATION_DURATION, function()
-                self.stateManager:setWindowMoving(window:id(), false)
-
-                -- 添加到新的边缘
-                local windowInfo = self.windowManager:addWindow(window, edge)
-                if windowInfo then
-                    -- 确保窗口被正确添加后再隐藏
-                    hs.timer.doAfter(0.1, function()
-                        if self.windowManager:getWindow(window:id()) then
-                            self:rehideWindow(windowInfo)
-                        end
-                    end)
-                end
-            end)
-
             return
         end
 
-        -- 如果窗口还未被管理，直接添加
-        local windowInfo = self.windowManager:addWindow(window, edge)
-        if windowInfo then
-            -- 确保窗口被正确添加后再隐藏
-            hs.timer.doAfter(0.1, function()
-                if self.windowManager:getWindow(window:id()) then
-                    self:rehideWindow(windowInfo)
-                end
-            end)
-        else
-            -- todo
+        -- 如果窗口在另一边，先移除它并等待动画完成
+        self.stateManager:setWindowMoving(window:id(), true)
+
+        -- 恢复窗口到原始位置
+        window:setFrame(info.originalFrame, config.ANIMATION_DURATION)
+
+        -- 清理原有的监视器和状态
+        if info.leaveWatcher then
+            info.leaveWatcher:stop()
+            info.leaveWatcher = nil
         end
-    end, "handleHotkey")()
+
+        -- 移除窗口管理
+        self.windowManager:removeWindow(window:id())
+
+        -- 等待动画完成后添加到新的边缘
+        hs.timer.doAfter(config.ANIMATION_DURATION, function()
+            self.stateManager:setWindowMoving(window:id(), false)
+
+            -- 添加到新的边缘
+            local windowInfo = self.windowManager:addWindow(window, edge)
+            if windowInfo then
+                -- 确保窗口被正确添加后再隐藏
+                hs.timer.doAfter(0.1, function()
+                    if self.windowManager:getWindow(window:id()) then
+                        self:rehideWindow(windowInfo)
+                    end
+                end)
+            end
+        end)
+
+        return
+    end
+
+    -- 如果窗口还未被管理，直接添加
+    local windowInfo = self.windowManager:addWindow(window, edge)
+    if windowInfo then
+        -- 确保窗口被正确添加后再隐藏
+        hs.timer.doAfter(0.1, function()
+            if self.windowManager:getWindow(window:id()) then
+                self.stateManager:setWindowHidden(window:id(), false)
+                self:rehideWindow(windowInfo)
+            end
+        end)
+    else
+        -- todo
+    end
 end
 
 function EdgeManager:removeWindow(window)
@@ -233,20 +238,28 @@ function EdgeManager:removeWindow(window)
 end
 
 function EdgeManager:rehideWindow(info)
+    log.action("Window", string.format("Hiding window %d", info.window:id()))
     self.stateManager:setWindowMoving(info.window:id(), true)
     info.window:setFrame(info.hiddenFrame, config.ANIMATION_DURATION)
     hs.timer.doAfter(config.ANIMATION_DURATION, function()
         self.stateManager:setWindowMoving(info.window:id(), false)
+        self.stateManager:setWindowHidden(info.window:id(), true)
     end)
 end
 
 function EdgeManager:showWindow(info)
+    log.action("Window", string.format("Showing window %d", info.window:id()))
+    if not self.stateManager:isWindowHidden(info.window:id()) then
+        return
+    end
+
     self.stateManager:setWindowMoving(info.window:id(), true)
     info.window:setFrame(info.edgeFrame, config.ANIMATION_DURATION)
 
     hs.timer.doAfter(config.ANIMATION_DURATION, function()
         info.window:focus()
         self.stateManager:setWindowMoving(info.window:id(), false)
+        self.stateManager:setWindowHidden(info.window:id(), false)
     end)
 
     self:setupLeaveWatcher(info)
@@ -274,6 +287,7 @@ function EdgeManager:setupLeaveWatcher(info)
 end
 
 function EdgeManager:clearAll()
+    log.action("Window", "Clearing all windows")
     for _, info in pairs(self.windowManager:getAllWindows()) do
         self.stateManager:setWindowMoving(info.window:id(), true)
         info.window:setFrame(info.originalFrame, config.ANIMATION_DURATION)
@@ -285,6 +299,7 @@ function EdgeManager:clearAll()
         end
         self.windowManager:removeWindow(info.window:id())
         self.stateManager:removeState(info.window:id())
+        self.stateManager:setWindowHidden(info.window:id(), false)
     end
 end
 
@@ -293,19 +308,11 @@ function EdgeManager:destroy()
         self.mouseWatcher:stop()
         self.mouseWatcher = nil
     end
-
-    for _, info in pairs(self.windowManager:getAllWindows()) do
-        if info.leaveWatcher then
-            info.leaveWatcher:stop()
-            info.leaveWatcher = nil
-        end
-        -- 确保窗口回到原始位置
-        info.window:setFrame(info.originalFrame)
-    end
-
     self.windowManager = nil
     self.stateManager = nil
+    self:clearAll()
     collectgarbage("collect")
+    log.operation("销毁")
 end
 
 return EdgeManager

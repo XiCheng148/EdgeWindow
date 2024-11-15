@@ -33,7 +33,6 @@
 - `Cmd + Alt + Left`: 将当前窗口贴附到左侧边缘
 - `Cmd + Alt + Right`: 将当前窗口贴附到右侧边缘
 - `Cmd + Alt + H`: 清除所有边缘贴附的窗口
-- `Cmd + Alt + ,`: 打开配置界面
 
 ### 基本操作
 
@@ -58,9 +57,7 @@
 - `EdgeManager.lua`: 核心管理器
 - `WindowManager.lua`: 窗口管理
 - `StateManager.lua`: 状态管理
-- `ErrorHandler.lua`: 错误处理
 - `config.lua`: 配置文件
-- `utils.lua`: 工具函数
 
 ## 贡献
 欢迎提交 Issue 和 Pull Request！
