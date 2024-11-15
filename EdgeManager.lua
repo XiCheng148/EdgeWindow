@@ -141,11 +141,22 @@ function EdgeManager:handleMouseMove(point)
 end
 
 function EdgeManager:shouldShowWindow(point, info)
+    local currentSpace = hs.spaces.focusedSpace()
     local zone = info.triggerZone
-    return point.x >= zone.x and
+    -- 没开启独立空间直接计算
+    if not config.ALONE_SPACE then
+        return point.x >= zone.x and
         point.x <= zone.x + zone.w and
         point.y >= zone.y and
         point.y <= zone.y + zone.h
+    end
+    -- 开启独立空间需要判断保存的空间和当前的空间是否相同
+    if config.ALONE_SPACE and currentSpace == info.space then
+        return point.x >= zone.x and
+            point.x <= zone.x + zone.w and
+            point.y >= zone.y and
+            point.y <= zone.y + zone.h
+    end
 end
 
 function EdgeManager:handleHotkey(edge)

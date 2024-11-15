@@ -4,6 +4,7 @@ return {
   EDGE_PEEK_SIZE = 6,  -- 边缘露出的宽度
   EDGE_TRIGGER_SIZE = 6,  -- 边缘触发器的宽度
   MOUSE_CHECK_INTERVAL = 0.3,  -- 鼠标移动检查间隔
+  ALONE_SPACE = true, -- 独立桌面空间
   HOTKEYS = {
       LEFT = {
           mods = {"cmd", "ctrl"},

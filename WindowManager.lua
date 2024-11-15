@@ -29,7 +29,8 @@ end
 function WindowManager:addWindow(window, edge)
     local id = window:id()
     local frame = window:frame()
-    local screen = window:screen()  -- 保存窗口所在的屏幕
+    local screen = window:screen()
+    local currentSpace = hs.spaces.focusedSpace()
 
     self.windows[id] = {
         window = window,
@@ -38,6 +39,7 @@ function WindowManager:addWindow(window, edge)
         edgeFrame = self:calculateEdgeFrame(window, edge),
         hiddenFrame = self:calculateHiddenFrame(window, edge),
         triggerZone = self:calculateTriggerZone(window, edge),
+        space = currentSpace,
         edge = edge
     }
     log.info("Added window", string.format("Added window %d to %s edge", id, edge))
