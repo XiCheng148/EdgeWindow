@@ -1,10 +1,13 @@
 local log = {}
 
 local fs = require("hs.fs")
+local json = require("hs.json")
 
 -- 日志文件路径
 local LOG_FILE = os.getenv("HOME") .. "/.hammerspoon/logs/app.log"
 local LOG_DIR = os.getenv("HOME") .. "/.hammerspoon/logs/"
+-- 添加保存路径常量
+local WINDOWS_JSON_PATH = os.getenv("HOME") .. "/.hammerspoon/logs/windows.json"
 
 -- 日志级别
 local LOG_LEVELS = {
@@ -60,9 +63,9 @@ end
 
 -- 记录错误日志
 function log.error(errorType, message, stackTrace)
-    local errorMsg = string.format("%s - %s\n%s", 
-        errorType, 
-        message, 
+    local errorMsg = string.format("%s - %s\n%s",
+        errorType,
+        message,
         stackTrace or debug.traceback())
     writeLog(LOG_LEVELS.ERROR, errorMsg)
 end
@@ -83,6 +86,56 @@ function log.cleanup()
                 end
             end
         end
+    end
+end
+
+function log.saveWindowsToJson(windows)
+    -- 创建一个新的表来存储可序列化的数据
+    local serializableWindows = {}
+
+    for id, info in pairs(windows) do
+        -- 只保存需要的数据，避免保存不可序列化的对象
+        serializableWindows[tostring(id)] = {
+            id = id,
+            edge = info.edge,
+            originalFrame = {
+                x = info.originalFrame.x,
+                y = info.originalFrame.y,
+                w = info.originalFrame.w,
+                h = info.originalFrame.h
+            },
+            edgeFrame = {
+                x = info.edgeFrame.x,
+                y = info.edgeFrame.y,
+                w = info.edgeFrame.w,
+                h = info.edgeFrame.h
+            },
+            hiddenFrame = {
+                x = info.hiddenFrame.x,
+                y = info.hiddenFrame.y,
+                w = info.hiddenFrame.w,
+                h = info.hiddenFrame.h
+            },
+            triggerZone = {
+                x = info.triggerZone.x,
+                y = info.triggerZone.y,
+                w = info.triggerZone.w,
+                h = info.triggerZone.h
+            }
+        }
+    end
+
+    -- 转换为 JSON 字符串
+    local jsonString = json.encode(serializableWindows, true) -- true 为美化输出
+
+    -- 写入文件
+    local file = io.open(WINDOWS_JSON_PATH, "w")
+    if file then
+        file:write(jsonString)
+        file:close()
+        log.info("JSON Save", "Successfully saved windows data to JSON")
+    else
+        log.error("JSON Save", "Failed to save windows data to JSON")
     end
 end
 

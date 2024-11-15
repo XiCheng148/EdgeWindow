@@ -24,5 +24,8 @@ local success, manager = xpcall(initializeEdgeManager, function(err)
     return err
 end)
 
--- 将manager暴露到全局作用域以便调试
-_G.edgeManager = manager
+-- 提示已重启
+hs.notify.new({
+    title = "🎉🎉🎉🎉",
+    informativeText = "Edge Window has been started. "
+}):send()

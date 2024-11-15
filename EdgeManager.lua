@@ -4,11 +4,31 @@ local log = require("log")
 local config = require("config")
 local WindowManager = require("WindowManager")
 local StateManager = require("StateManager")
+local Menubar = require("Menubar")
+
 local lastMouseCheck = 0
+
 function EdgeManager:new()
     local self = setmetatable({}, EdgeManager)
     self.windowManager = WindowManager:new()
     self.stateManager = StateManager:new()
+
+    -- 创建菜单栏，只传入需要的回调函数
+    self.menubar = Menubar:new({
+        addToLeft = function()
+            self:handleHotkey("left")
+        end,
+        addToRight = function()
+            self:handleHotkey("right")
+        end,
+        clearAll = function()
+            self:clearAll()
+        end,
+        getAllWindows = function()
+            return self.windowManager:getAllWindows()
+        end
+    })
+
     self:init()
     return self
 end
@@ -62,6 +82,7 @@ function EdgeManager:handleWindowMoved(window)
         end
         self.windowManager:removeWindow(window:id())
         self.stateManager:removeState(window:id())
+        self.menubar:updateMenu()
         return
     end
 
@@ -73,6 +94,7 @@ function EdgeManager:handleWindowMoved(window)
         -- 更新触发区域的y轴位置
         info.triggerZone.y = currentFrame.y
     end
+    self.menubar:updateMenu()
 end
 
 function EdgeManager:setupMouseWatcher()
@@ -146,9 +168,9 @@ function EdgeManager:shouldShowWindow(point, info)
     -- 没开启独立空间直接计算
     if not config.ALONE_SPACE then
         return point.x >= zone.x and
-        point.x <= zone.x + zone.w and
-        point.y >= zone.y and
-        point.y <= zone.y + zone.h
+            point.x <= zone.x + zone.w and
+            point.y >= zone.y and
+            point.y <= zone.y + zone.h
     end
     -- 开启独立空间需要判断保存的空间和当前的空间是否相同
     if config.ALONE_SPACE and currentSpace == info.space then
@@ -202,6 +224,7 @@ function EdgeManager:handleHotkey(edge)
 
         -- 移除窗口管理
         self.windowManager:removeWindow(window:id())
+        self.menubar:updateMenu()
 
         -- 等待动画完成后添加到新的边缘
         hs.timer.doAfter(config.ANIMATION_DURATION, function()
@@ -235,17 +258,7 @@ function EdgeManager:handleHotkey(edge)
     else
         -- todo
     end
-end
-
-function EdgeManager:removeWindow(window)
-    local info = self.windowManager:getWindow(window:id())
-    if info then
-        if info.leaveWatcher then
-            info.leaveWatcher:stop()
-        end
-        self.windowManager:removeWindow(window:id())
-        self.stateManager:removeState(window:id())
-    end
+    self.menubar:updateMenu()
 end
 
 function EdgeManager:rehideWindow(info)
@@ -312,6 +325,7 @@ function EdgeManager:clearAll()
         self.stateManager:removeState(info.window:id())
         self.stateManager:setWindowHidden(info.window:id(), false)
     end
+    self.menubar:updateMenu()
 end
 
 function EdgeManager:destroy()

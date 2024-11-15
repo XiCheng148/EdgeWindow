@@ -1,8 +1,8 @@
 local log = require("log")
+local config = require("config")
+
 local WindowManager = {}
 WindowManager.__index = WindowManager
-
-local config = require("config")
 
 function WindowManager:new()
     local self = setmetatable({}, WindowManager)
@@ -34,6 +34,7 @@ function WindowManager:addWindow(window, edge)
 
     self.windows[id] = {
         window = window,
+        title = window:application():name() or "Unknown",  -- 添加窗口标题
         screen = screen,  -- 添加屏幕信息
         originalFrame = frame,
         edgeFrame = self:calculateEdgeFrame(window, edge),
@@ -43,12 +44,14 @@ function WindowManager:addWindow(window, edge)
         edge = edge
     }
     log.info("Added window", string.format("Added window %d to %s edge", id, edge))
+    log.saveWindowsToJson(self.windows)
     return self.windows[id]
 end
 
 function WindowManager:removeWindow(windowId)
-    log.info("Remove Window", string.format(windowId))
     self.windows[windowId] = nil
+    log.info("Remove Window", string.format(windowId))
+    log.saveWindowsToJson(self.windows)
 end
 
 function WindowManager:getWindow(windowId)
