@@ -2,6 +2,12 @@
 
 一个基于 Hammerspoon 的 macOS 窗口管理工具，可以让窗口智能地贴附在屏幕边缘，并通过鼠标触发显示/隐藏。
 
+
+
+https://github.com/user-attachments/assets/be982b2c-f385-463b-b8d4-fdb0de9dce48
+
+
+
 ## 功能特点
 
 - 支持将窗口贴附在屏幕左侧或右侧边缘
