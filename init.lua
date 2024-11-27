@@ -9,11 +9,11 @@ local function initializeEdgeManager()
     local manager = EdgeManager:new()
 
     -- 注册程序退出时的清理回调
-    hs.shutdownCallback = function()
-        if manager then
-            manager:destroy()
-        end
-    end
+    -- hs.shutdownCallback = function()
+    --     if manager then
+    --         manager:destroy()
+    --     end
+    -- end
 
     return manager
 end

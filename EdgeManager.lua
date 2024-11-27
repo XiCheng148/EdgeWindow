@@ -334,6 +334,11 @@ end
 
 function EdgeManager:clearAll()
     log.action("Window", "Clearing all windows")
+    if not self.windowManager then
+        log.debug("WindowManager is nil during clearAll")
+        return
+    end
+
     for _, info in pairs(self.windowManager:getAllWindows()) do
         self.stateManager:setWindowMoving(info.window:id(), true)
         info.window:setFrame(info.originalFrame, config.ANIMATION_DURATION)

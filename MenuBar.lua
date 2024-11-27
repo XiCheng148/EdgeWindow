@@ -58,7 +58,12 @@ function Menubar:updateMenu()
         {
             title = "重启！",
             fn = function()
-                hs.reload()
+                self.callbacks.clearAll()
+                self:updateMenu()
+                -- 延迟 0.5 秒执行
+                hs.timer.doAfter(0.5, function()
+                    hs.reload()
+                end)
             end
         },
         { title = "-" } -- 分隔线

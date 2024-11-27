@@ -20,8 +20,10 @@ local LOG_LEVELS = {
 local MAX_LOG_SIZE = 1024 * 1024
 
 -- 确保日志目录存在
-if not fs.mkdir(LOG_DIR) then
-    print("Failed to create log directory")
+if not fs.attributes(LOG_DIR) then
+    if not fs.mkdir(LOG_DIR) then
+        print("Failed to create log directory")
+    end
 end
 
 -- 检查并轮换日志文件
