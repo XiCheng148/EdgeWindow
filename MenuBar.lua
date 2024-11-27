@@ -54,15 +54,6 @@ function Menubar:updateMenu()
                 self:updateMenu()
             end
         },
-        {
-            title = "配置设置",
-            fn = function()
-                if not self.configUI then
-                    self.configUI = require("ConfigUI"):new()
-                end
-                self.configUI:show()
-            end
-        },
         { title = "-" }, -- 分隔线
         {
             title = "重启！",

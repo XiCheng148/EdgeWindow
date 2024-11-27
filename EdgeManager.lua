@@ -50,6 +50,11 @@ function EdgeManager:setupWindowFilter()
         self:handleWindowUnfocus(window)
     end)
 
+    -- 添加窗口关闭事件监听
+    windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
+        self:handleWindowClosed(window)
+    end)
+
     -- 添加窗口移动事件监听
     windowFilter:subscribe(hs.window.filter.windowMoved, function(window)
         self:handleWindowMoved(window)
@@ -139,6 +144,21 @@ function EdgeManager:handleWindowUnfocus(window)
 
     if isShown then
         self:rehideWindow(info)
+    end
+end
+
+function EdgeManager:handleWindowClosed(window)
+    local info = self.windowManager:getWindow(window:id())
+    if info then
+        -- 清理窗口相关的所有状态
+        if info.leaveWatcher then
+            info.leaveWatcher:stop()
+            info.leaveWatcher = nil
+        end
+        self.windowManager:removeWindow(window:id())
+        self.stateManager:removeState(window:id())
+        self.stateManager:setWindowHidden(window:id(), false)
+        self.menubar:updateMenu()
     end
 end
 
