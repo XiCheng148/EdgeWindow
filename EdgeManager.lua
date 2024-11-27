@@ -102,9 +102,9 @@ end
 
 function EdgeManager:setupMouseEventTap()
     -- 创建鼠标事件监听器
-    self.mouseEventTap = hs.eventtap.new({hs.eventtap.event.types.mouseMoved}, function(event)
+    self.mouseEventTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(event)
         local point = hs.mouse.absolutePosition()
-        
+
         for _, info in pairs(self.windowManager:getAllWindows()) do
             if self.stateManager:isWindowHidden(info.window:id()) and
                 self:shouldShowWindow(point, info) then
@@ -117,10 +117,10 @@ function EdgeManager:setupMouseEventTap()
                 break
             end
         end
-        
-        return false  -- 继续传递事件给系统
+
+        return false -- 继续传递事件给系统
     end)
-    
+
     -- 启动事件监听
     self.mouseEventTap:start()
 end
@@ -288,17 +288,23 @@ function EdgeManager:rehideWindow(info)
 end
 
 function EdgeManager:showWindow(info)
-    log.action("Window", string.format("Showing window %d", info.window:id()))
-    if not self.stateManager:isWindowHidden(info.window:id()) then
+    local windowId = info.window:id()
+    -- 如果窗口
+    -- 1. 不是隐藏
+    -- 2. 正在移动
+    -- 则不做任何操作
+    if not self.stateManager:isWindowHidden(windowId) or
+        self.stateManager:isWindowMoving(windowId) then
         return
     end
+    log.action("Window", string.format("Showing window %d", windowId))
 
-    self.stateManager:setWindowMoving(info.window:id(), true)
+    self.stateManager:setWindowMoving(windowId, true)
+    info.window:focus()
     info.window:setFrame(info.edgeFrame, config.ANIMATION_DURATION)
 
     hs.timer.doAfter(config.ANIMATION_DURATION, function()
-        info.window:focus()
-        self.stateManager:setWindowMoving(info.window:id(), false)
+        self.stateManager:setWindowMoving(windowId, false)
         self.stateManager:setWindowHidden(info.window:id(), false)
     end)
 
@@ -331,6 +337,7 @@ function EdgeManager:clearAll()
     for _, info in pairs(self.windowManager:getAllWindows()) do
         self.stateManager:setWindowMoving(info.window:id(), true)
         info.window:setFrame(info.originalFrame, config.ANIMATION_DURATION)
+        info.window:focus()
         hs.timer.doAfter(config.ANIMATION_DURATION, function()
             self.stateManager:setWindowMoving(info.window:id(), false)
         end)
