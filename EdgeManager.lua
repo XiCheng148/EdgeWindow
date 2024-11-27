@@ -6,8 +6,6 @@ local WindowManager = require("WindowManager")
 local StateManager = require("StateManager")
 local Menubar = require("Menubar")
 
-local lastMouseCheck = 0
-
 function EdgeManager:new()
     local self = setmetatable({}, EdgeManager)
     self.windowManager = WindowManager:new()
@@ -35,7 +33,7 @@ end
 
 function EdgeManager:init()
     self:setupWindowFilter()
-    self:setupMouseWatcher()
+    self:setupMouseEventTap()
     self:setupHotkeys()
 end
 
@@ -102,11 +100,29 @@ function EdgeManager:handleWindowMoved(window)
     self.menubar:updateMenu()
 end
 
-function EdgeManager:setupMouseWatcher()
-    self.mouseWatcher = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(e)
-        self:handleMouseMove(hs.mouse.absolutePosition())
+function EdgeManager:setupMouseEventTap()
+    -- 创建鼠标事件监听器
+    self.mouseEventTap = hs.eventtap.new({hs.eventtap.event.types.mouseMoved}, function(event)
+        local point = hs.mouse.absolutePosition()
+        
+        for _, info in pairs(self.windowManager:getAllWindows()) do
+            if self.stateManager:isWindowHidden(info.window:id()) and
+                self:shouldShowWindow(point, info) then
+                -- 使用延迟确认来避免快速移动时的误触发
+                hs.timer.doAfter(0.1, function()
+                    if self:shouldShowWindow(hs.mouse.absolutePosition(), info) then
+                        self:showWindow(info)
+                    end
+                end)
+                break
+            end
+        end
+        
+        return false  -- 继续传递事件给系统
     end)
-    self.mouseWatcher:start()
+    
+    -- 启动事件监听
+    self.mouseEventTap:start()
 end
 
 function EdgeManager:setupHotkeys()
@@ -159,26 +175,6 @@ function EdgeManager:handleWindowClosed(window)
         self.stateManager:removeState(window:id())
         self.stateManager:setWindowHidden(window:id(), false)
         self.menubar:updateMenu()
-    end
-end
-
-function EdgeManager:handleMouseMove(point)
-    local now = hs.timer.secondsSinceEpoch()
-    if now - lastMouseCheck < config.MOUSE_CHECK_INTERVAL then
-        return
-    end
-    lastMouseCheck = now
-
-    for _, info in pairs(self.windowManager:getAllWindows()) do
-        if self.stateManager:isWindowHidden(info.window:id()) and
-            self:shouldShowWindow(point, info) then
-            hs.timer.doAfter(0.1, function()
-                if self:shouldShowWindow(hs.mouse.absolutePosition(), info) then
-                    self:showWindow(info)
-                end
-            end)
-            break
-        end
     end
 end
 
@@ -349,9 +345,9 @@ function EdgeManager:clearAll()
 end
 
 function EdgeManager:destroy()
-    if self.mouseWatcher then
-        self.mouseWatcher:stop()
-        self.mouseWatcher = nil
+    if self.mouseEventTap then
+        self.mouseEventTap:stop()
+        self.mouseEventTap = nil
     end
     self.windowManager = nil
     self.stateManager = nil
