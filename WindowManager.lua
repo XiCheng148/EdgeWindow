@@ -31,10 +31,18 @@ function WindowManager:addWindow(window, edge)
     local frame = window:frame()
     local screen = window:screen()
     local currentSpace = hs.spaces.focusedSpace()
-
+    local edgeString = ""
+    if edge == "left" then
+        edgeString = "⬅️"
+    elseif edge == "right" then
+        edgeString = "➡️"
+    else
+        edgeString = "⚠️"
+    end
+    local title = window:title()
     self.windows[id] = {
         window = window,
-        title = window:application():name() or "Unknown",  -- 添加窗口标题
+        title = edgeString .. " - " .. title,
         screen = screen,  -- 添加屏幕信息
         originalFrame = frame,
         edgeFrame = self:calculateEdgeFrame(window, edge),
@@ -67,7 +75,7 @@ function WindowManager:calculateTriggerZone(window, edge)
     local frame = window:frame()
     local screen = window:screen():frame()
     local screenFrame = window:screen():fullFrame()  -- 获取屏幕的绝对坐标
-
+    local triggerWidth = config.EDGE_TRIGGER_SIZE + 1
     local zone = {
         y = frame.y,
         h = frame.h
@@ -75,10 +83,10 @@ function WindowManager:calculateTriggerZone(window, edge)
 
     if edge == "left" then
         zone.x = screenFrame.x  -- 使用屏幕的绝对X坐标
-        zone.w = config.EDGE_TRIGGER_SIZE * 2
+        zone.w = triggerWidth
     elseif edge == "right" then
-        zone.x = screenFrame.x + screen.w - (config.EDGE_TRIGGER_SIZE * 2)
-        zone.w = config.EDGE_TRIGGER_SIZE * 2
+        zone.x = screenFrame.x + screen.w - (triggerWidth)
+        zone.w = triggerWidth
     end
 
     log.info("Trigger Zone", string.format("Trigger zone: %s", zone))

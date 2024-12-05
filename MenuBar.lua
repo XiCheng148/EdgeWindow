@@ -22,7 +22,7 @@ end
 function Menubar:init()
     self.menubar = hs.menubar.new()
     if self.menubar then
-        self.menubar:setTitle("📌")
+        self.menubar:setIcon(hs.image.imageFromPath(hs.configdir .. "/icons/menubar.svg"))
         self:updateMenu()
     else
         log.error("Menubar", "Failed to create menubar")
@@ -72,9 +72,8 @@ function Menubar:updateMenu()
     -- 添加当前管理的窗口列表
     local windows = self.callbacks.getAllWindows()
     for _, info in pairs(windows) do
-        local windowTitle = info.window:application():name() or "Unknown"
         local menuItem = {
-            title = string.format("%s (%s)", windowTitle, info.edge),
+            title = info.title,
             fn = function()
                 info.window:focus()
             end
