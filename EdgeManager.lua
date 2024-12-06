@@ -79,6 +79,7 @@ function EdgeManager:handleWindowMoved(window)
     -- 如果不在边缘位置，说明是用户手动拖动
     if not isAtEdgePosition then
         -- 移除窗口管理
+        hs.alert.show(string.format("移除 %s", window:title()))
         if info.leaveWatcher then
             info.leaveWatcher:stop()
             info.leaveWatcher = nil
