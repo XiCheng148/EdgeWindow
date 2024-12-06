@@ -33,16 +33,16 @@ function WindowManager:addWindow(window, edge)
     local currentSpace = hs.spaces.focusedSpace()
     local edgeString = ""
     if edge == "left" then
-        edgeString = "⬅️"
+        edgeString = "←"
     elseif edge == "right" then
-        edgeString = "➡️"
+        edgeString = "→"
     else
         edgeString = "⚠️"
     end
     local title = window:title()
     self.windows[id] = {
         window = window,
-        title = edgeString .. " - " .. title,
+        title = edgeString .. "  " .. title,
         screen = screen,  -- 添加屏幕信息
         originalFrame = frame,
         edgeFrame = self:calculateEdgeFrame(window, edge),

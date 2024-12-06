@@ -202,7 +202,7 @@ function EdgeManager:handleHotkey(edge)
     -- 获取当前焦点窗口
     local window = hs.window.focusedWindow()
     if not window then
-        -- todo
+        hs.alert.show("未能找到活动窗口")
         return
     end
 
@@ -354,6 +354,7 @@ function EdgeManager:clearAll()
         self.stateManager:setWindowHidden(info.window:id(), false)
     end
     self.menubar:updateMenu()
+    hs.alert.show('已清除所有')
 end
 
 function EdgeManager:destroy()
