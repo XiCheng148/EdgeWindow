@@ -22,7 +22,8 @@ end
 function Menubar:init()
     self.menubar = hs.menubar.new()
     if self.menubar then
-        self.menubar:setIcon(hs.image.imageFromPath(hs.configdir .. "/icons/menubar.svg"))
+        -- self.menubar:setIcon(hs.image.imageFromPath(hs.configdir .. "/icons/menubar.svg"))
+        self.menubar:setTitle('🖥️')
         self:updateMenu()
     else
         log.error("Menubar", "Failed to create menubar")
