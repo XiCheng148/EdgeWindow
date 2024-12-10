@@ -32,31 +32,47 @@ function EdgeManager:new()
 end
 
 function EdgeManager:init()
+    -- 缓存更多频繁使用的值
+    self.mainScreen = hs.screen.mainScreen()
+    self.mainScreenFrame = self.mainScreen:fullFrame()
+    self.triggerSize = config.EDGE_TRIGGER_SIZE
+    self.moveThreshold = config.MOVE_THRESHOLD
+    self.animationDuration = config.ANIMATION_DURATION
+    self.aloneSpace = config.ALONE_SPACE
+
+    -- 监听屏幕变化时更新所有缓存
+    hs.screen.watcher.new(function()
+        self.mainScreen = hs.screen.mainScreen()
+        self.mainScreenFrame = self.mainScreen:fullFrame()
+    end):start()
+
     self:setupWindowFilter()
     self:setupMouseEventTap()
     self:setupHotkeys()
 end
 
 function EdgeManager:isPointInRect(point, rect)
-    return point.x >= rect.x and point.x <= rect.x + rect.w and
-        point.y >= rect.y and point.y <= rect.y + rect.h
+    -- 先检查 y 轴，因为通常触发区域是垂直的长条
+    if point.y < rect.y or point.y > rect.y + rect.h then
+        return false
+    end
+    return point.x >= rect.x and point.x <= rect.x + rect.w
 end
 
 function EdgeManager:setupWindowFilter()
+    -- 合并窗口事件监听
     local windowFilter = hs.window.filter.new()
-    windowFilter:subscribe(hs.window.filter.windowUnfocused, function(window)
-        self:handleWindowUnfocus(window)
-    end)
+    local events = {
+        [hs.window.filter.windowUnfocused] = self.handleWindowUnfocus,
+        [hs.window.filter.windowDestroyed] = self.handleWindowClosed,
+        [hs.window.filter.windowMoved] = self.handleWindowMoved
+    }
 
-    -- 添加窗口关闭事件监听
-    windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
-        self:handleWindowClosed(window)
-    end)
-
-    -- 添加窗口移动事件监听
-    windowFilter:subscribe(hs.window.filter.windowMoved, function(window)
-        self:handleWindowMoved(window)
-    end)
+    for event, handler in pairs(events) do
+        windowFilter:subscribe(event, function(window)
+            handler(self, window)
+        end)
+    end
 end
 
 function EdgeManager:handleWindowMoved(window)
@@ -79,7 +95,7 @@ function EdgeManager:handleWindowMoved(window)
     -- 如果不在边缘位置，说明是用户手动拖动
     if not isAtEdgePosition then
         -- 移除窗口管理
-        hs.alert.show(string.format("移除 %s", window:title()))
+        hs.alert.show(string.format("🔄 移除「%s」", window:title()))
         if info.leaveWatcher then
             info.leaveWatcher:stop()
             info.leaveWatcher = nil
@@ -101,29 +117,99 @@ function EdgeManager:handleWindowMoved(window)
     self.menubar:updateMenu()
 end
 
-function EdgeManager:setupMouseEventTap()
-    -- 创建鼠标事件监听器
-    self.mouseEventTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(event)
-        local point = hs.mouse.absolutePosition()
+-- 添加节流函数
+local function throttle(fn, limit)
+    local lastRun = 0
+    local timer = nil
+    return function(...)
+        local args = { ... }
+        local now = hs.timer.secondsSinceEpoch()
 
-        for _, info in pairs(self.windowManager:getAllWindows()) do
-            if self.stateManager:isWindowHidden(info.window:id()) and
-                self:shouldShowWindow(point, info) then
-                -- 使用延迟确认来避免快速移动时的误触发
-                hs.timer.doAfter(0.1, function()
-                    if self:shouldShowWindow(hs.mouse.absolutePosition(), info) then
-                        self:showWindow(info)
-                    end
-                end)
-                break
+        -- 如果距离上次执行时间超过限制，立即执行
+        if (now - lastRun) >= limit then
+            lastRun = now
+            return fn(table.unpack(args))
+        end
+
+        -- 否则，取消之前的计时器（如果存在）并设置新的计时器
+        if timer then
+            timer:stop()
+        end
+
+        -- 设置新的计时器，确保函数最终会被执行
+        timer = hs.timer.doAfter(limit - (now - lastRun), function()
+            lastRun = hs.timer.secondsSinceEpoch()
+            fn(table.unpack(args))
+        end)
+    end
+end
+
+function EdgeManager:setupMouseEventTap()
+    local throttledMouseMoved = throttle(function(e)
+        if not self.windowManager then return end
+
+        -- 使用单次循环检查多个状态
+        local windows = self.windowManager:getAllWindows()
+        for _, info in pairs(windows) do
+            local windowId = info.window:id()
+            if self.stateManager:isWindowMoving(windowId) or
+                not self.stateManager:isWindowHidden(windowId) then
+                return
             end
         end
 
-        return false -- 继续传递事件给系统
-    end)
+        local point = hs.mouse.absolutePosition()
+        self:handleWindowsMouseEvent(point, windows)
+    end, 0.033)
 
-    -- 启动事件监听
+    -- 设置事件监听
+    self.mouseEventTap = hs.eventtap.new(
+        { hs.eventtap.event.types.mouseMoved },
+        function(e)
+            throttledMouseMoved(e)
+            return false
+        end
+    )
+
     self.mouseEventTap:start()
+end
+
+function EdgeManager:handleWindowsMouseEvent(point, windows)
+    -- 先缓存边缘检查结果
+    local isNearLeftEdge = point.x <= self.triggerSize
+    local isNearRightEdge = point.x >= self.mainScreenFrame.w - self.triggerSize
+
+    if not (isNearLeftEdge or isNearRightEdge) then
+        return
+    end
+
+    for _, info in pairs(windows) do
+        local windowId = info.window:id()
+
+        -- 如果窗口正在移动，跳过处理
+        if self.stateManager:isWindowMoving(windowId) then
+            goto continue
+        end
+
+        -- 使用 shouldShowWindow 检查空间和触发区域
+        if self:shouldShowWindow(point, info) then
+            -- 如果窗口当前是隐藏的，显示它
+            if self.stateManager:isWindowHidden(windowId) then
+                self:showWindow(info)
+                break -- 显示一个窗口后就退出循环
+            end
+        else
+            -- 检查鼠标是否在窗口区域外
+            if not self.stateManager:isWindowHidden(windowId) and
+                not self:isPointInRect(point, info.window:frame()) then
+                -- 如果鼠标在窗口外且窗口是显示的，隐藏它
+                self:rehideWindow(info)
+                break -- 隐藏一个窗口后就退出循环
+            end
+        end
+
+        ::continue::
+    end
 end
 
 function EdgeManager:setupHotkeys()
@@ -167,6 +253,8 @@ end
 function EdgeManager:handleWindowClosed(window)
     local info = self.windowManager:getWindow(window:id())
     if info then
+        local windowTitle = window:title() or "未知窗口"
+        log.action("🚫", string.format("关闭「%s」", windowTitle))
         -- 清理窗口相关的所有状态
         if info.leaveWatcher then
             info.leaveWatcher:stop()
@@ -182,28 +270,22 @@ end
 function EdgeManager:shouldShowWindow(point, info)
     local currentSpace = hs.spaces.focusedSpace()
     local zone = info.triggerZone
-    -- 没开启独立空间直接计算
+
+    -- 没开启独立空间直接计算触发区域
     if not config.ALONE_SPACE then
-        return point.x >= zone.x and
-            point.x <= zone.x + zone.w and
-            point.y >= zone.y and
-            point.y <= zone.y + zone.h
+        return self:isPointInRect(point, zone)
     end
+
     -- 开启独立空间需要判断保存的空间和当前的空间是否相同
-    if config.ALONE_SPACE and currentSpace == info.space then
-        return point.x >= zone.x and
-            point.x <= zone.x + zone.w and
-            point.y >= zone.y and
-            point.y <= zone.y + zone.h
-    end
+    return currentSpace == info.space and self:isPointInRect(point, zone)
 end
 
 function EdgeManager:handleHotkey(edge)
-    log.action("Hotkey", string.format("Triggered edge: %s", edge))
+    log.action("⌨️", string.format("触发边缘: %s", edge == "left" and "左" or "右"))
     -- 获取当前焦点窗口
     local window = hs.window.focusedWindow()
     if not window then
-        hs.alert.show("未能找到活动窗口")
+        hs.alert.show("⚠️ 未能找到活动窗口")
         return
     end
 
@@ -279,7 +361,9 @@ function EdgeManager:handleHotkey(edge)
 end
 
 function EdgeManager:rehideWindow(info)
-    log.action("Window", string.format("Hiding window %d", info.window:id()))
+    local windowTitle = info.window:title() or "未知窗口"
+    log.action("🚫", string.format("隐藏「%s」", windowTitle))
+
     self.stateManager:setWindowMoving(info.window:id(), true)
     info.window:setFrame(info.hiddenFrame, config.ANIMATION_DURATION)
     hs.timer.doAfter(config.ANIMATION_DURATION, function()
@@ -290,15 +374,14 @@ end
 
 function EdgeManager:showWindow(info)
     local windowId = info.window:id()
-    -- 如果窗口
-    -- 1. 不是隐藏
-    -- 2. 正在移动
-    -- 则不做任何操作
     if not self.stateManager:isWindowHidden(windowId) or
         self.stateManager:isWindowMoving(windowId) then
         return
     end
-    log.action("Window", string.format("Showing window %d", windowId))
+
+    -- 获取窗口标题
+    local windowTitle = info.window:title() or "未知窗口"
+    log.action("👀", string.format("显示「%s」", windowTitle))
 
     self.stateManager:setWindowMoving(windowId, true)
     info.window:focus()
@@ -318,7 +401,7 @@ function EdgeManager:setupLeaveWatcher(info)
         info.leaveWatcher = nil
     end
 
-    info.leaveWatcher = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function(e)
+    local throttledLeaveCheck = throttle(function(e)
         local point = hs.mouse.absolutePosition()
         local frame = info.window:frame()
 
@@ -328,34 +411,53 @@ function EdgeManager:setupLeaveWatcher(info)
             info.leaveWatcher = nil
             self:rehideWindow(info)
         end
-    end)
+    end, 0.05) -- 可以适当提高检查间隔，减少性能消耗
+
+    info.leaveWatcher = hs.eventtap.new(
+        { hs.eventtap.event.types.mouseMoved },
+        throttledLeaveCheck
+    )
 
     info.leaveWatcher:start()
 end
 
 function EdgeManager:clearAll()
-    log.action("Window", "Clearing all windows")
-    if not self.windowManager then
-        log.debug("WindowManager is nil during clearAll")
-        return
+    if not self.windowManager then return end
+    
+    -- 先收集所有需要处理的窗口信息
+    local windowsToRemove = {}
+    for windowId, info in pairs(self.windowManager:getAllWindows()) do
+        windowsToRemove[windowId] = info
     end
-
-    for _, info in pairs(self.windowManager:getAllWindows()) do
-        self.stateManager:setWindowMoving(info.window:id(), true)
-        info.window:setFrame(info.originalFrame, config.ANIMATION_DURATION)
-        info.window:focus()
-        hs.timer.doAfter(config.ANIMATION_DURATION, function()
-            self.stateManager:setWindowMoving(info.window:id(), false)
-        end)
+    
+    -- 处理收集到的窗口
+    for windowId, info in pairs(windowsToRemove) do
+        -- 立即停止所有监视器
         if info.leaveWatcher then
             info.leaveWatcher:stop()
+            info.leaveWatcher = nil
         end
-        self.windowManager:removeWindow(info.window:id())
-        self.stateManager:removeState(info.window:id())
-        self.stateManager:setWindowHidden(info.window:id(), false)
+        
+        -- 批量处理状态更新
+        self.stateManager:setWindowMoving(windowId, true)
+        info.window:setFrame(info.originalFrame, self.animationDuration)
+        info.window:focus()
+        
+        -- 使用闭包保存 windowId，避免创建额外的表
+        hs.timer.doAfter(self.animationDuration, function()
+            if self.stateManager then -- 检查是否已被销毁
+                self.stateManager:setWindowMoving(windowId, false)
+            end
+        end)
+        
+        -- 移除窗口管理
+        self.windowManager:removeWindow(windowId)
+        self.stateManager:removeState(windowId)
+        self.stateManager:setWindowHidden(windowId, false)
     end
+    
     self.menubar:updateMenu()
-    hs.alert.show('已清除所有')
+    hs.alert.show('✨ 已清除所有窗口')
 end
 
 function EdgeManager:destroy()
@@ -367,7 +469,7 @@ function EdgeManager:destroy()
     self.stateManager = nil
     self:clearAll()
     collectgarbage("collect")
-    log.operation("销毁")
+    log.operation("🔧 系统已销毁")
 end
 
 return EdgeManager

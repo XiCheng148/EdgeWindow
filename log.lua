@@ -135,9 +135,9 @@ function log.saveWindowsToJson(windows)
     if file then
         file:write(jsonString)
         file:close()
-        log.info("JSON Save", "Successfully saved windows data to JSON")
+        log.info("👌 JSON", "成功将窗口数据保存为 JSON")
     else
-        log.error("JSON Save", "Failed to save windows data to JSON")
+        log.error("🚫 JSON", "Failed to save windows data to JSON")
     end
 end
 

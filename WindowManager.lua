@@ -22,7 +22,8 @@ function WindowManager:calculateHiddenFrame(window, edge)
         hiddenFrame.x = screenFrame.x + screen.w - config.EDGE_PEEK_SIZE
     end
 
-    log.info("Hidden Frame", string.format("Hidden frame: %s", hiddenFrame))
+    log.info("🚫", string.format("隐藏位置: x=%.1f, y=%.1f, w=%.1f, h=%.1f", 
+        hiddenFrame.x, hiddenFrame.y, hiddenFrame.w, hiddenFrame.h))
     return hiddenFrame
 end
 
@@ -51,14 +52,17 @@ function WindowManager:addWindow(window, edge)
         space = currentSpace,
         edge = edge
     }
-    log.info("Added window", string.format("Added window %d to %s edge", id, edge))
+    log.info("➕", string.format("添加「%s」到%s边缘", title, edge == "left" and "左" or "右"))
     log.saveWindowsToJson(self.windows)
     return self.windows[id]
 end
 
 function WindowManager:removeWindow(windowId)
+    local window = self.windows[windowId]
+    if window then
+        log.info("🧹", string.format("移除「%s」", window.window:title()))
+    end
     self.windows[windowId] = nil
-    log.info("Remove Window", string.format(windowId))
     log.saveWindowsToJson(self.windows)
 end
 
@@ -89,7 +93,8 @@ function WindowManager:calculateTriggerZone(window, edge)
         zone.w = triggerWidth
     end
 
-    log.info("Trigger Zone", string.format("Trigger zone: %s", zone))
+    log.info("🎯", string.format("触发区域: x=%.1f, y=%.1f, w=%.1f, h=%.1f",
+        zone.x, zone.y, zone.w, zone.h))
     return zone
 end
 
@@ -105,7 +110,8 @@ function WindowManager:calculateEdgeFrame(window, edge)
         edgeFrame.x = screenFrame.x + screen.w - frame.w
     end
 
-    log.info("Edge Frame", string.format("Edge frame: %s", edgeFrame))
+    log.info("👀", string.format("显示位置: x=%.1f, y=%.1f, w=%.1f, h=%.1f",
+        edgeFrame.x, edgeFrame.y, edgeFrame.w, edgeFrame.h))
     return edgeFrame
 end
 
